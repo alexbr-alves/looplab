@@ -561,6 +561,6 @@ const server = app.listen(PORT, HOST, () => {
 });
 
 server.on('error', (error) => {
-  console.error('Não foi possível iniciar o motor local:', error);
+  console.error('Não foi possível iniciar o motor de vídeo:', error);
   process.exit(1);
 });

@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'LoopLab — Estúdio de vídeo local',
+  title: 'LoopLab — Estúdio de vídeo',
   description: 'Monte vídeos com loop, playlist, títulos e relatório de tempos no seu próprio Mac.',
 };
 

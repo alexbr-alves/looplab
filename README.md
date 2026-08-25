@@ -1,6 +1,6 @@
-# LoopLab local
+# LoopLab
 
-Aplicativo local para transformar um vídeo curto e uma playlist em um MP4 longo, com intervalos, títulos e relatório de tempos. A fonte principal pode ser um link público de playlist do Flow Music; anexos de áudio do Mac continuam disponíveis como alternativa.
+Aplicativo para transformar um vídeo curto e uma playlist em um MP4 longo, com intervalos, títulos e relatório de tempos. A fonte principal pode ser um link público de playlist do Flow Music; anexos de áudio do Mac continuam disponíveis como alternativa.
 
 ## Como abrir
 
@@ -9,7 +9,7 @@ Aplicativo local para transformar um vídeo curto e uma playlist em um MP4 longo
 3. Mantenha a janela do Terminal aberta enquanto estiver usando o aplicativo.
 4. Para encerrar, feche o Terminal ou pressione `Control + C` nele.
 
-O vídeo é processado apenas neste Mac. Quando você usa um link do Flow Music, o LoopLab acessa a playlist pública e baixa os WAVs oficiais diretamente para a pasta local do trabalho. Nada é publicado ou enviado pelo LoopLab.
+O vídeo é processado apenas neste Mac. Quando você usa um link do Flow Music, o LoopLab acessa a playlist pública e baixa os WAVs oficiais diretamente para a pasta do trabalho. Nada é publicado ou enviado pelo LoopLab.
 
 ## Fluxo
 

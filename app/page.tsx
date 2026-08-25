@@ -87,11 +87,11 @@ function uploadJob(form: FormData, onProgress: (value: number) => void) {
     };
     request.onload = () => {
       let body: Job | { error?: string };
-      try { body = JSON.parse(request.responseText); } catch { return reject(new Error('Resposta inválida do servidor local.')); }
+      try { body = JSON.parse(request.responseText); } catch { return reject(new Error('Resposta inválida do servidor.')); }
       if (request.status >= 200 && request.status < 300) return resolve(body as Job);
       reject(new Error((body as { error?: string }).error || 'Não foi possível iniciar o processamento.'));
     };
-    request.onerror = () => reject(new Error('O motor de vídeo local não está acessível.'));
+    request.onerror = () => reject(new Error('O motor de vídeo não está acessível.'));
     request.send(form);
   });
 }
@@ -255,7 +255,7 @@ export default function Home() {
       trackSources,
     }));
     try {
-      setJob({ id: '', status: 'queued', stage: 'Copiando os arquivos para o motor local', progress: 0, timeline: [], totalDuration: estimatedDuration });
+      setJob({ id: '', status: 'queued', stage: 'Copiando os arquivos para o motor de vídeo', progress: 0, timeline: [], totalDuration: estimatedDuration });
       const created = await uploadJob(form, setUploadProgress);
       setJob(created);
     } catch (generationError) {
@@ -274,9 +274,9 @@ export default function Home() {
     <main className="app-shell">
       <header className="topbar">
         <div className="brand-mark">L</div>
-        <div><strong>LoopLab</strong><span>Estúdio de vídeo local</span></div>
+        <div><strong>LoopLab</strong><span>Estúdio de vídeo</span></div>
         <div className={`privacy-pill ${serverReady === false ? 'offline' : ''}`}>
-          <i /> {serverReady === false ? 'Motor local desconectado' : serverReady ? 'Pronto neste Mac' : 'Conectando…'}
+          <i /> {serverReady === false ? 'Motor de vídeo desconectado' : serverReady ? 'Pronto neste Mac' : 'Conectando…'}
         </div>
       </header>
 
