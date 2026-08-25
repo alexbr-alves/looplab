@@ -124,22 +124,40 @@ export default function Home() {
     setJob((current) => current && ['queued', 'processing'].includes(current.status) ? current : null);
   }
 
-  async function findActiveJob() {
+  async function loadActiveJobById(id: string | null) {
+    if (!id || !/^[0-9a-f-]{36}$/i.test(id)) return null;
     try {
-      const response = await fetch(`${API}/jobs/active`);
-      if (response.ok) return await response.json() as Job;
-    } catch { /* tenta recuperar pelo identificador salvo */ }
-
-    const savedId = window.localStorage.getItem(ACTIVE_JOB_KEY);
-    if (!savedId) return null;
-    try {
-      const response = await fetch(`${API}/jobs/${savedId}`);
+      const response = await fetch(`${API}/jobs/${id}`);
       if (!response.ok) return null;
-      const savedJob = await response.json() as Job;
-      return ['queued', 'processing'].includes(savedJob.status) ? savedJob : null;
+      const candidate = await response.json() as Job;
+      if (!['queued', 'processing'].includes(candidate.status)) return null;
+      window.localStorage.setItem(ACTIVE_JOB_KEY, candidate.id);
+      return candidate;
     } catch {
       return null;
     }
+  }
+
+  async function findActiveJob() {
+    try {
+      const response = await fetch(`${API}/jobs/active`);
+      if (response.ok) {
+        const active = await response.json() as Job;
+        window.localStorage.setItem(ACTIVE_JOB_KEY, active.id);
+        return active;
+      }
+    } catch { /* tenta recuperar pelo identificador salvo */ }
+
+    const savedJob = await loadActiveJobById(window.localStorage.getItem(ACTIVE_JOB_KEY));
+    if (savedJob) return savedJob;
+
+    try {
+      const response = await fetch('/looplab-active-job.txt', { cache: 'no-store' });
+      if (response.ok) return await loadActiveJobById((await response.text()).trim());
+    } catch {
+      /* o arquivo só existe enquanto uma renderização antiga está ativa */
+    }
+    return null;
   }
 
   useEffect(() => {

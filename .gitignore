@@ -37,3 +37,4 @@ next-env.d.ts
 /outputs/
 /work/
 /local-data/
+/public/looplab-active-job.txt
