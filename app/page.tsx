@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 const API = 'http://127.0.0.1:8788/api';
+const ACTIVE_JOB_KEY = 'looplab-active-job-id';
 
 type Track = {
   id: string;
@@ -86,10 +87,12 @@ function uploadJob(form: FormData, onProgress: (value: number) => void) {
       if (event.lengthComputable) onProgress(Math.round((event.loaded / event.total) * 100));
     };
     request.onload = () => {
-      let body: Job | { error?: string };
+      let body: Job | { error?: string; activeJob?: Job };
       try { body = JSON.parse(request.responseText); } catch { return reject(new Error('Resposta inválida do servidor.')); }
       if (request.status >= 200 && request.status < 300) return resolve(body as Job);
-      reject(new Error((body as { error?: string }).error || 'Não foi possível iniciar o processamento.'));
+      const failure = new Error((body as { error?: string }).error || 'Não foi possível iniciar o processamento.') as Error & { activeJob?: Job };
+      failure.activeJob = (body as { activeJob?: Job }).activeJob;
+      reject(failure);
     };
     request.onerror = () => reject(new Error('O motor de vídeo não está acessível.'));
     request.send(form);
@@ -117,12 +120,55 @@ export default function Home() {
   const activeJobId = job?.id;
   const activeJobStatus = job?.status;
 
+  function keepActiveJob() {
+    setJob((current) => current && ['queued', 'processing'].includes(current.status) ? current : null);
+  }
+
+  async function findActiveJob() {
+    try {
+      const response = await fetch(`${API}/jobs/active`);
+      if (response.ok) return await response.json() as Job;
+    } catch { /* tenta recuperar pelo identificador salvo */ }
+
+    const savedId = window.localStorage.getItem(ACTIVE_JOB_KEY);
+    if (!savedId) return null;
+    try {
+      const response = await fetch(`${API}/jobs/${savedId}`);
+      if (!response.ok) return null;
+      const savedJob = await response.json() as Job;
+      return ['queued', 'processing'].includes(savedJob.status) ? savedJob : null;
+    } catch {
+      return null;
+    }
+  }
+
   useEffect(() => {
     fetch(`${API}/health`)
       .then((response) => { if (!response.ok) throw new Error(); return response.json(); })
       .then(() => setServerReady(true))
       .catch(() => setServerReady(false));
+    void findActiveJob().then((active) => { if (active) setJob(active); });
   }, []);
+
+  useEffect(() => {
+    if (!job?.id) return;
+    if (['queued', 'processing'].includes(job.status)) {
+      window.localStorage.setItem(ACTIVE_JOB_KEY, job.id);
+    } else if (window.localStorage.getItem(ACTIVE_JOB_KEY) === job.id) {
+      window.localStorage.removeItem(ACTIVE_JOB_KEY);
+    }
+  }, [job?.id, job?.status]);
+
+  useEffect(() => {
+    if (activeJobId && activeJobStatus && ['queued', 'processing'].includes(activeJobStatus)) return;
+    const recover = () => { void findActiveJob().then((active) => { if (active) setJob(active); }); };
+    const timer = window.setInterval(recover, 2000);
+    window.addEventListener('storage', recover);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener('storage', recover);
+    };
+  }, [activeJobId, activeJobStatus]);
 
   useEffect(() => {
     if (!activeJobId || !activeJobStatus || !['queued', 'processing'].includes(activeJobStatus)) return;
@@ -133,7 +179,13 @@ export default function Home() {
         if (!response.ok) throw new Error(next.error);
         setJob(next);
       } catch (pollError) {
-        setError(pollError instanceof Error ? pollError.message : 'Falha ao consultar o processamento.');
+        const recovered = await findActiveJob();
+        if (recovered) {
+          setJob(recovered);
+          setError('');
+        } else {
+          setError(pollError instanceof Error ? pollError.message : 'Falha ao consultar o processamento.');
+        }
       }
     }, 1000);
     return () => window.clearInterval(timer);
@@ -167,7 +219,7 @@ export default function Home() {
     if (!file) return;
     setVideo(file);
     setVideoDuration(await mediaDuration(file, 'video'));
-    setJob(null);
+    keepActiveJob();
     setError('');
   }
 
@@ -181,7 +233,7 @@ export default function Home() {
       duration: await mediaDuration(file, 'audio'),
     })));
     setTracks((current) => [...current, ...selected]);
-    setJob(null);
+    keepActiveJob();
     setError('');
   }
 
@@ -190,7 +242,7 @@ export default function Home() {
     if (!link) return;
     setPlaylistLoading(true);
     setError('');
-    setJob(null);
+    keepActiveJob();
     try {
       const response = await fetch(`${API}/flow/playlist`, {
         method: 'POST',
@@ -232,6 +284,12 @@ export default function Home() {
   async function generate() {
     if (!video || !tracks.length) return;
     setError('');
+    const alreadyActive = await findActiveJob();
+    if (alreadyActive) {
+      setJob(alreadyActive);
+      setError('Já existe um vídeo sendo processado. O progresso atual foi restaurado.');
+      return;
+    }
     setJob(null);
     setUploadProgress(0);
     const form = new FormData();
@@ -259,7 +317,13 @@ export default function Home() {
       const created = await uploadJob(form, setUploadProgress);
       setJob(created);
     } catch (generationError) {
-      setJob(null);
+      const active = (generationError as Error & { activeJob?: Job }).activeJob;
+      if (active) {
+        setJob(active);
+      } else {
+        const recovered = await findActiveJob();
+        setJob(recovered);
+      }
       setError(generationError instanceof Error ? generationError.message : 'Falha ao iniciar o processamento.');
     }
   }

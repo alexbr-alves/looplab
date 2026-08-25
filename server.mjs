@@ -20,6 +20,7 @@ const JOBS_ROOT = path.join(ROOT, 'jobs');
 const jobs = new Map();
 const queue = [];
 let queueRunning = false;
+let jobSubmissionInProgress = false;
 const FLOW_HOSTS = new Set(['flowmusic.app', 'www.flowmusic.app']);
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -179,6 +180,10 @@ function publicJob(job) {
     outputName: job.outputName,
     createdAt: job.createdAt,
   };
+}
+
+function currentActiveJob() {
+  return [...jobs.values()].find((job) => ['queued', 'processing'].includes(job.status)) || null;
 }
 
 function setJob(job, update) {
@@ -441,6 +446,12 @@ app.get('/api/health', async (_req, res) => {
   }
 });
 
+app.get('/api/jobs/active', (_req, res) => {
+  const active = currentActiveJob();
+  if (!active) return res.status(404).json({ error: 'Nenhum vídeo está sendo processado.' });
+  res.json(publicJob(active));
+});
+
 app.post('/api/flow/playlist', async (req, res) => {
   try {
     res.json(await inspectFlowPlaylist(req.body?.url));
@@ -450,7 +461,20 @@ app.post('/api/flow/playlist', async (req, res) => {
   }
 });
 
-app.post('/api/jobs', upload.fields([
+app.post('/api/jobs', (req, res, next) => {
+  const active = currentActiveJob();
+  if (active || jobSubmissionInProgress) {
+    return res.status(409).json({
+      error: active
+        ? 'Já existe um vídeo sendo processado. Aguarde a conclusão ou cancele o processamento atual.'
+        : 'Outro vídeo já está sendo enviado. Aguarde a confirmação do processamento.',
+      activeJob: active ? publicJob(active) : undefined,
+    });
+  }
+  jobSubmissionInProgress = true;
+  res.once('finish', () => { jobSubmissionInProgress = false; });
+  next();
+}, upload.fields([
   { name: 'video', maxCount: 1 },
   { name: 'tracks', maxCount: 100 },
 ]), async (req, res) => {
