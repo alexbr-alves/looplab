@@ -148,6 +148,7 @@ button { cursor: pointer; }
 .progress-track { height: 7px; margin-top: 9px; overflow: hidden; border-radius: 999px; background: #dfe5e1; }
 .progress-track i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #1b714f, #47b27b); transition: width .4s ease; }
 .download-video { display: block; margin-top: 12px; padding: 12px; border-radius: 11px; background: var(--green); color: white; text-align: center; text-decoration: none; font-size: 11px; font-weight: 800; }
+.new-video-button { width: 100%; margin-top: 8px; padding: 10px; border: 1px solid #91c5a9; border-radius: 11px; background: white; color: var(--green-dark); font-size: 10px; font-weight: 800; }
 .cancel-button { width: 100%; margin-top: 10px; padding: 8px; border: 0; background: transparent; color: #a74737; font-size: 10px; font-weight: 700; }
 .job-error { margin: 10px 0 0; color: #943727; font-size: 9px; line-height: 1.45; }
 

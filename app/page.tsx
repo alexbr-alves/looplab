@@ -353,6 +353,19 @@ export default function Home() {
     setJob(await response.json());
   }
 
+  function startNewVideo() {
+    window.localStorage.removeItem(ACTIVE_JOB_KEY);
+    setJob(null);
+    setVideo(null);
+    setVideoDuration(null);
+    setTracks([]);
+    setPlaylistUrl('');
+    setPlaylistName('');
+    setOutputName('LoopLab - vídeo final');
+    setUploadProgress(0);
+    setError('');
+  }
+
   return (
     <main className="app-shell">
       <header className="topbar">
@@ -496,7 +509,12 @@ export default function Home() {
             <div className={`job-card ${job.status}`}>
               <div className="job-status"><span>{job.stage}</span><strong>{job.status === 'completed' ? '100%' : `${job.progress || uploadProgress}%`}</strong></div>
               <div className="progress-track"><i style={{ width: `${job.status === 'completed' ? 100 : job.progress || uploadProgress}%` }} /></div>
-              {job.status === 'completed' && <a className="download-video" href={`${API}/jobs/${job.id}/download`}>Baixar MP4 final</a>}
+              {job.status === 'completed' && (
+                <>
+                  <a className="download-video" href={`${API}/jobs/${job.id}/download`}>Baixar MP4 final</a>
+                  <button className="new-video-button" onClick={startNewVideo}>Criar outro vídeo</button>
+                </>
+              )}
               {busy && job.id && <button className="cancel-button" onClick={() => { void cancelJob(); }}>Cancelar</button>}
               {job.status === 'failed' && <p className="job-error">{job.error}</p>}
             </div>
