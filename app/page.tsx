@@ -124,13 +124,14 @@ export default function Home() {
     setJob((current) => current && ['queued', 'processing'].includes(current.status) ? current : null);
   }
 
-  async function loadActiveJobById(id: string | null) {
+  async function loadJobById(id: string | null, includeCompleted = false) {
     if (!id || !/^[0-9a-f-]{36}$/i.test(id)) return null;
     try {
       const response = await fetch(`${API}/jobs/${id}`);
       if (!response.ok) return null;
       const candidate = await response.json() as Job;
-      if (!['queued', 'processing'].includes(candidate.status)) return null;
+      const restorableStatuses = includeCompleted ? ['queued', 'processing', 'completed'] : ['queued', 'processing'];
+      if (!restorableStatuses.includes(candidate.status)) return null;
       window.localStorage.setItem(ACTIVE_JOB_KEY, candidate.id);
       return candidate;
     } catch {
@@ -138,7 +139,7 @@ export default function Home() {
     }
   }
 
-  async function findActiveJob() {
+  async function findActiveJob(includeCompleted = false) {
     try {
       const response = await fetch(`${API}/jobs/active`);
       if (response.ok) {
@@ -148,12 +149,12 @@ export default function Home() {
       }
     } catch { /* tenta recuperar pelo identificador salvo */ }
 
-    const savedJob = await loadActiveJobById(window.localStorage.getItem(ACTIVE_JOB_KEY));
+    const savedJob = await loadJobById(window.localStorage.getItem(ACTIVE_JOB_KEY), includeCompleted);
     if (savedJob) return savedJob;
 
     try {
       const response = await fetch('/looplab-active-job.txt', { cache: 'no-store' });
-      if (response.ok) return await loadActiveJobById((await response.text()).trim());
+      if (response.ok) return await loadJobById((await response.text()).trim(), includeCompleted);
     } catch {
       /* o arquivo só existe enquanto uma renderização antiga está ativa */
     }
@@ -165,12 +166,12 @@ export default function Home() {
       .then((response) => { if (!response.ok) throw new Error(); return response.json(); })
       .then(() => setServerReady(true))
       .catch(() => setServerReady(false));
-    void findActiveJob().then((active) => { if (active) setJob(active); });
+    void findActiveJob(true).then((restored) => { if (restored) setJob(restored); });
   }, []);
 
   useEffect(() => {
     if (!job?.id) return;
-    if (['queued', 'processing'].includes(job.status)) {
+    if (['queued', 'processing', 'completed'].includes(job.status)) {
       window.localStorage.setItem(ACTIVE_JOB_KEY, job.id);
     } else if (window.localStorage.getItem(ACTIVE_JOB_KEY) === job.id) {
       window.localStorage.removeItem(ACTIVE_JOB_KEY);
@@ -178,8 +179,8 @@ export default function Home() {
   }, [job?.id, job?.status]);
 
   useEffect(() => {
-    if (activeJobId && activeJobStatus && ['queued', 'processing'].includes(activeJobStatus)) return;
-    const recover = () => { void findActiveJob().then((active) => { if (active) setJob(active); }); };
+    if (activeJobId && activeJobStatus && ['queued', 'processing', 'completed'].includes(activeJobStatus)) return;
+    const recover = () => { void findActiveJob(true).then((restored) => { if (restored) setJob(restored); }); };
     const timer = window.setInterval(recover, 2000);
     window.addEventListener('storage', recover);
     return () => {
